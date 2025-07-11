@@ -6,11 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException, status
 from app.models.video import Video
+from app.models.template import Template
 from app.schemas.video import VideoCreate, VideoUpdate
-from typing import Optional, List
+from app.utils.video_processor_bridge import VideoProcessorBridge
+from typing import Optional, List, Dict, Any
 import os
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 
 class VideoService:
@@ -39,10 +42,13 @@ class VideoService:
             await db.commit()
             await db.refresh(db_video)
             
-            # TODO: Queue video processing job
-            # For now, we'll just set it to processing
-            db_video.status = "processing"
-            await db.commit()
+            # Start video processing in background
+            # In production, this would be queued as a background task
+            try:
+                await VideoService.process_video_generation(db, db_video.id, video_data)
+            except Exception as e:
+                print(f"Background video processing failed: {e}")
+                # Don't fail the request, just log the error
             
             return db_video
         except Exception as e:
@@ -121,23 +127,173 @@ class VideoService:
         }
     
     @staticmethod
-    async def process_video_generation(video_id: int, config: dict) -> bool:
-        """Process video generation (mock implementation)"""
-        # TODO: Implement actual video processing using the video engine
-        # This would typically be run as a background task
-        
+    async def process_video_generation(db: AsyncSession, video_id: int, video_data: VideoCreate) -> bool:
+        """Process video generation using the video engine"""
         try:
-            # Mock processing
-            print(f"Processing video {video_id} with config: {config}")
+            # Get video record
+            video = await db.execute(select(Video).where(Video.id == video_id))
+            video = video.scalar_one_or_none()
+            if not video:
+                return False
             
-            # Simulate processing time
-            import asyncio
-            await asyncio.sleep(2)
+            # Update status to processing
+            video.status = "processing"
+            await db.commit()
             
-            # TODO: Use the video engine to actually generate the video
-            # from packages.video_engine import SimpleVideoProcessor
+            # Get template if template-based generation
+            scenes = []
+            if video_data.template_id:
+                template_result = await db.execute(
+                    select(Template).where(Template.id == video_data.template_id)
+                )
+                template = template_result.scalar_one_or_none()
+                if template:
+                    scenes = template.elements.get("scenes", [])
+            else:
+                # Create scenes from config for other generation types
+                scenes = VideoService._create_scenes_from_config(video_data.config)
             
-            return True
+            # Set up file paths
+            uploads_dir = Path(__file__).parent.parent.parent / "uploads"
+            video_filename = f"video_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
+            thumbnail_filename = f"thumb_{video_id}_{uuid.uuid4().hex[:8]}.jpg"
+            
+            video_path = uploads_dir / "videos" / video_filename
+            thumbnail_path = uploads_dir / "thumbnails" / thumbnail_filename
+            
+            # Initialize video processor bridge
+            processor = VideoProcessorBridge()
+            
+            # Process video
+            result = await processor.process_video(
+                scenes=scenes,
+                config=video_data.config,
+                output_path=str(video_path)
+            )
+            
+            if result["success"]:
+                # Generate thumbnail
+                thumb_result = await processor.generate_thumbnail(
+                    str(video_path), 
+                    str(thumbnail_path)
+                )
+                
+                # Update video record with results
+                video.status = "completed"
+                video.file_path = str(video_path)
+                video.thumbnail_path = str(thumbnail_path) if thumb_result["success"] else None
+                video.duration = result["metadata"]["duration"]
+                video.file_size = result["metadata"]["fileSize"]
+                video.resolution = result["metadata"]["resolution"]
+                video.format = result["metadata"]["format"]
+                
+                # Update metadata
+                if video.metadata:
+                    video.metadata.update(result["metadata"])
+                else:
+                    video.metadata = result["metadata"]
+                
+                await db.commit()
+                return True
+            else:
+                # Update status to failed
+                video.status = "failed"
+                if video.metadata:
+                    video.metadata["error"] = result.get("error", "Unknown error")
+                else:
+                    video.metadata = {"error": result.get("error", "Unknown error")}
+                await db.commit()
+                return False
+                
         except Exception as e:
             print(f"Video processing failed: {e}")
+            # Update video status to failed
+            try:
+                video = await db.execute(select(Video).where(Video.id == video_id))
+                video = video.scalar_one_or_none()
+                if video:
+                    video.status = "failed"
+                    if video.metadata:
+                        video.metadata["error"] = str(e)
+                    else:
+                        video.metadata = {"error": str(e)}
+                    await db.commit()
+            except:
+                pass
             return False
+    
+    @staticmethod
+    def _create_scenes_from_config(config: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Create scenes from video configuration for non-template generation"""
+        scenes = []
+        
+        generation_type = config.get("generation_type", "text_to_video")
+        
+        if generation_type == "text_to_video":
+            # Create a simple text scene
+            scenes.append({
+                "id": "text_scene",
+                "type": "main",
+                "duration": config.get("duration", 10),
+                "elements": [
+                    {
+                        "id": "main_text",
+                        "type": "text",
+                        "position": {"x": 50, "y": 50},
+                        "size": {"width": 80, "height": 20},
+                        "properties": {
+                            "text": config.get("textPrompt", "Generated Video"),
+                            "fontSize": 32,
+                            "fontFamily": "Arial",
+                            "color": "#ffffff",
+                            "textAlign": "center"
+                        }
+                    }
+                ]
+            })
+        elif generation_type == "slideshow":
+            # Create scenes from images
+            images = config.get("images", [])
+            duration_per_slide = config.get("duration", 20) / max(len(images), 1)
+            
+            for i, image_url in enumerate(images):
+                scenes.append({
+                    "id": f"slide_{i}",
+                    "type": "main",
+                    "duration": duration_per_slide,
+                    "elements": [
+                        {
+                            "id": f"image_{i}",
+                            "type": "image",
+                            "position": {"x": 50, "y": 50},
+                            "size": {"width": 80, "height": 80},
+                            "properties": {
+                                "src": image_url
+                            }
+                        }
+                    ]
+                })
+        else:
+            # Default scene for other types
+            scenes.append({
+                "id": "default_scene",
+                "type": "main",
+                "duration": config.get("duration", 10),
+                "elements": [
+                    {
+                        "id": "placeholder_text",
+                        "type": "text",
+                        "position": {"x": 50, "y": 50},
+                        "size": {"width": 60, "height": 15},
+                        "properties": {
+                            "text": "Video Content",
+                            "fontSize": 28,
+                            "fontFamily": "Arial",
+                            "color": "#ffffff",
+                            "textAlign": "center"
+                        }
+                    }
+                ]
+            })
+        
+        return scenes

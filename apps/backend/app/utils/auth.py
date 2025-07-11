@@ -64,3 +64,19 @@ def create_tokens(email: str) -> dict:
         "refresh_token": refresh_token,
         "token_type": "bearer"
     }
+
+async def get_current_user_websocket(token: str) -> Optional[int]:
+    """Authenticate user for WebSocket connections"""
+    try:
+        # Verify the token
+        email = verify_token(token)
+        if not email:
+            return None
+        
+        # For now, return a mock user ID
+        # In production, you would query the database to get the actual user ID
+        # from the email
+        return 1  # Mock user ID
+        
+    except Exception:
+        return None
