@@ -15,7 +15,7 @@ A full-featured video generation platform supporting multiple video creation met
 
 This is a monorepo containing:
 
-- `apps/backend` - Node.js/Express API server
+- `apps/backend` - Python/FastAPI API server
 - `apps/web` - React.js web application
 - `apps/mobile` - React Native mobile application
 - `packages/shared` - Shared utilities and types
@@ -48,7 +48,8 @@ This is a monorepo containing:
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+
+- Python 3.9+
+- Node.js 18+ (for web frontend)
 - FFmpeg
 - PostgreSQL
 - Redis
@@ -60,7 +61,12 @@ This is a monorepo containing:
 git clone <repository-url>
 cd GenXvids
 
-# Install dependencies
+# Install Python dependencies for backend
+cd apps/backend
+pip install -r requirements.txt
+cd ../..
+
+# Install Node.js dependencies for frontend
 npm run install:all
 
 # Set up environment variables
@@ -74,8 +80,11 @@ npm run dev
 ### Individual Services
 
 ```bash
-# Backend only
-npm run dev:backend
+# Backend only (Python/FastAPI)
+cd apps/backend
+python main.py
+# or
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # Web app only
 npm run dev:web
@@ -140,23 +149,42 @@ Create `.env` files in each app directory:
 
 #### Backend (.env)
 ```
-NODE_ENV=development
-PORT=3001
+ENVIRONMENT=development
+HOST=0.0.0.0
+PORT=8000
+DEBUG=true
+LOG_LEVEL=INFO
+
+# Database
 DATABASE_URL=postgresql://user:password@localhost:5432/genxvids
 REDIS_URL=redis://localhost:6379
-JWT_SECRET=your-jwt-secret
-UPLOAD_PATH=./uploads
+
+# Security
+SECRET_KEY=your-secret-key-here
+JWT_SECRET_KEY=your-jwt-secret-key
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# File uploads
+UPLOAD_DIR=./uploads
+TEMP_DIR=./temp
+MAX_FILE_SIZE=100000000
+
+# CORS
+ALLOWED_ORIGINS=["http://localhost:3000", "http://localhost:5173"]
+ALLOWED_METHODS=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+ALLOWED_HEADERS=["*"]
 ```
 
 #### Web (.env)
 ```
-REACT_APP_API_URL=http://localhost:3001
-REACT_APP_WS_URL=ws://localhost:3001
+REACT_APP_API_URL=http://localhost:8000
+REACT_APP_WS_URL=ws://localhost:8000
 ```
 
 ## 📚 API Documentation
 
-The API documentation is available at `http://localhost:3001/docs` when running the backend server.
+The API documentation is available at `http://localhost:8000/docs` when running the backend server.
 
 ## 🧪 Testing
 
@@ -164,8 +192,10 @@ The API documentation is available at `http://localhost:3001/docs` when running 
 # Run all tests
 npm run test
 
-# Run backend tests
-npm run test --workspace=apps/backend
+# Run backend tests (Python)
+cd apps/backend
+pytest
+cd ../..
 
 # Run web tests
 npm run test --workspace=apps/web
