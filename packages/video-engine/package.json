@@ -1,0 +1,31 @@
+{
+  "name": "@genxvids/video-engine",
+  "version": "1.0.0",
+  "description": "Core video processing engine for GenXvids platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@genxvids/shared": "workspace:*",
+    "canvas": "^2.11.2",
+    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "sharp": "^0.32.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.6",
+    "@types/node": "^20.5.0",
+    "@types/fluent-ffmpeg": "^2.1.21"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  }
+}
