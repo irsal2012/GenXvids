@@ -57,6 +57,9 @@ const VideoEditor: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportStatus, setExportStatus] = useState('');
+  const [showImageUpload, setShowImageUpload] = useState(false);
+  const [availableImages, setAvailableImages] = useState<any[]>([]);
+  const [isLoadingImages, setIsLoadingImages] = useState(false);
 
   const projectId = searchParams.get('project');
   const templateId = searchParams.get('template');
@@ -201,6 +204,91 @@ const VideoEditor: React.FC = () => {
     setElements([...elements, newElement]);
     setSelectedElement(newElement.id);
     setShowElementPanel(true);
+  };
+
+  const showImageSelector = async () => {
+    setShowImageUpload(true);
+    await loadAvailableImages();
+  };
+
+  const loadAvailableImages = async () => {
+    try {
+      setIsLoadingImages(true);
+      const response = await axios.get('/api/v1/assets/types/image', {
+        params: { limit: 50 }
+      });
+      
+      if (response.data.success) {
+        setAvailableImages(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading images:', error);
+      setAvailableImages([]);
+    } finally {
+      setIsLoadingImages(false);
+    }
+  };
+
+  const uploadImage = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', file.name.split('.')[0]);
+      formData.append('category', 'backgrounds');
+      
+      const response = await axios.post('/api/v1/assets/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (response.data.success) {
+        // Refresh the available images
+        await loadAvailableImages();
+        alert('Image uploaded successfully!');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image. Please try again.');
+    }
+  };
+
+  const addImageElement = (imageAsset: any) => {
+    const newElement: VideoElement = {
+      id: Date.now().toString(),
+      type: 'image',
+      content: imageAsset.file_path,
+      position: { x: 100, y: 100 },
+      size: { width: imageAsset.width || 200, height: imageAsset.height || 150 },
+      style: {
+        opacity: 1
+      },
+      timing: { start: currentTime, duration: 5 }
+    };
+    
+    setElements([...elements, newElement]);
+    setSelectedElement(newElement.id);
+    setShowElementPanel(true);
+    setShowImageUpload(false);
+  };
+
+  const handleImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file.');
+        return;
+      }
+      
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Image file size must be less than 10MB.');
+        return;
+      }
+      
+      uploadImage(file);
+    }
   };
 
   const updateElement = (id: string, updates: Partial<VideoElement>) => {
@@ -434,6 +522,95 @@ const VideoEditor: React.FC = () => {
         </div>
       )}
 
+      {/* Image Upload Modal */}
+      {showImageUpload && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold">Add Image</h3>
+              <button
+                onClick={() => setShowImageUpload(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Upload Section */}
+            <div className="mb-6">
+              <h4 className="text-lg font-medium mb-3">Upload New Image</h4>
+              <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFileSelect}
+                  className="hidden"
+                  id="image-upload"
+                />
+                <label
+                  htmlFor="image-upload"
+                  className="cursor-pointer flex flex-col items-center"
+                >
+                  <div className="text-4xl mb-2">📁</div>
+                  <p className="text-gray-300 mb-2">Click to upload an image</p>
+                  <p className="text-sm text-gray-500">Supports: JPG, PNG, GIF (max 10MB)</p>
+                </label>
+              </div>
+            </div>
+            
+            {/* Available Images Section */}
+            <div>
+              <h4 className="text-lg font-medium mb-3">Available Images</h4>
+              
+              {isLoadingImages ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-2">Loading images...</span>
+                </div>
+              ) : availableImages.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <div className="text-4xl mb-2">🖼️</div>
+                  <p>No images available</p>
+                  <p className="text-sm">Upload your first image to get started</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {availableImages.map((image) => (
+                    <div
+                      key={image.id}
+                      onClick={() => addImageElement(image)}
+                      className="bg-gray-700 rounded-lg p-3 cursor-pointer hover:bg-gray-600 transition-colors"
+                    >
+                      <div className="aspect-square bg-gray-600 rounded mb-2 flex items-center justify-center">
+                        <span className="text-2xl">🖼️</span>
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-medium truncate">{image.name}</p>
+                        <p className="text-gray-400 text-xs">
+                          {image.width}x{image.height}
+                        </p>
+                        <p className="text-gray-400 text-xs">
+                          {(image.file_size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowImageUpload(false)}
+                className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-gray-800 border-b border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
@@ -484,7 +661,7 @@ const VideoEditor: React.FC = () => {
               📝 Add Text
             </button>
             <button
-              onClick={() => setShowElementPanel(true)}
+              onClick={showImageSelector}
               className="w-full bg-gray-700 hover:bg-gray-600 p-3 rounded text-left"
             >
               🖼️ Add Image
@@ -563,7 +740,24 @@ const VideoEditor: React.FC = () => {
                         </div>
                       )}
                       {element.type === 'image' && (
-                        <div className="w-full h-full bg-gray-600 flex items-center justify-center text-xs">
+                        <img
+                          src={element.content}
+                          alt="Video element"
+                          className="w-full h-full object-cover rounded"
+                          onError={(e) => {
+                            // Fallback to placeholder if image fails to load
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const placeholder = target.nextElementSibling as HTMLElement;
+                            if (placeholder) placeholder.style.display = 'flex';
+                          }}
+                        />
+                      )}
+                      {element.type === 'image' && (
+                        <div 
+                          className="w-full h-full bg-gray-600 flex items-center justify-center text-xs"
+                          style={{ display: 'none' }}
+                        >
                           Image Placeholder
                         </div>
                       )}

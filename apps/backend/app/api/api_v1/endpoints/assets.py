@@ -73,7 +73,7 @@ async def get_assets(
                 "height": asset.height,
                 "duration": asset.duration,
                 "category": asset.category,
-                "tags": asset.tags or [],
+                "tags": [],
                 "is_public": asset.is_public,
                 "is_premium": asset.is_premium,
                 "usage_count": asset.usage_count,
@@ -136,7 +136,7 @@ async def upload_asset(
                 "height": asset.height,
                 "duration": asset.duration,
                 "category": asset.category,
-                "tags": asset.tags or [],
+                "tags": [],
                 "created_at": asset.created_at.isoformat()
             }
         }
@@ -172,7 +172,7 @@ async def get_assets_by_type(
                 "height": asset.height,
                 "duration": asset.duration,
                 "category": asset.category,
-                "tags": asset.tags or [],
+                "tags": [],
                 "usage_count": asset.usage_count,
                 "created_at": asset.created_at.isoformat()
             })
@@ -237,8 +237,8 @@ async def get_asset(
                 "height": asset.height,
                 "duration": asset.duration,
                 "category": asset.category,
-                "tags": asset.tags or [],
-                "metadata": asset.metadata,
+                "tags": [],
+                "metadata": getattr(asset, 'metadata', {}),
                 "is_public": asset.is_public,
                 "is_premium": asset.is_premium,
                 "usage_count": asset.usage_count,
@@ -278,7 +278,7 @@ async def update_asset(
                 "id": asset.id,
                 "name": asset.name,
                 "category": asset.category,
-                "tags": asset.tags or [],
+                "tags": [],
                 "is_public": asset.is_public,
                 "is_premium": asset.is_premium,
                 "updated_at": asset.updated_at.isoformat()
