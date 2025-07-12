@@ -14,11 +14,11 @@ import time
 import os
 from pathlib import Path
 
-from apps.backend.app.core.config import settings
-from apps.backend.app.core.logging import setup_logging
-from apps.backend.app.db.database import create_tables
-from apps.backend.app.api.api_v1.api import api_router
-from apps.backend.app.core.exceptions import setup_exception_handlers
+from app.core.config import settings
+from app.core.logging import setup_logging
+from app.db.database import create_tables
+from app.api.api_v1.api import api_router
+from app.core.exceptions import setup_exception_handlers
 
 # Setup logging
 logger = setup_logging()

@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
 
 # Password hashing
@@ -64,6 +65,42 @@ def create_tokens(email: str) -> dict:
         "refresh_token": refresh_token,
         "token_type": "bearer"
     }
+
+# Security scheme
+security = HTTPBearer()
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get current authenticated user"""
+    try:
+        # Extract token from credentials
+        token = credentials.credentials
+        
+        # Verify the token
+        email = verify_token(token)
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # For now, return a mock user object
+        # In production, you would query the database to get the actual user
+        from app.models.user import User
+        mock_user = User(
+            id=1,
+            email=email,
+            username=email.split('@')[0],
+            is_active=True
+        )
+        return mock_user
+        
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 async def get_current_user_websocket(token: str) -> Optional[int]:
     """Authenticate user for WebSocket connections"""

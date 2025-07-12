@@ -3,7 +3,7 @@ Main API router for v1
 """
 
 from fastapi import APIRouter
-from apps.backend.app.api.api_v1.endpoints import auth, users, videos, templates, projects, assets, system, websocket
+from app.api.api_v1.endpoints import auth, users, videos, templates, projects, assets, system, websocket, ai
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(templates.router, prefix="/templates", tags=["template
 api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
 api_router.include_router(system.router, prefix="/system", tags=["system"])
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
+api_router.include_router(ai.router, prefix="/ai", tags=["artificial-intelligence"])

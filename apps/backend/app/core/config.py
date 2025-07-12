@@ -67,7 +67,41 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
     
-    # AI/ML Configuration
+    # Azure OpenAI Configuration
+    AZURE_OPENAI_API_KEY: Optional[str] = None
+    AZURE_OPENAI_ENDPOINT: Optional[str] = None
+    AZURE_OPENAI_DEPLOYMENT: Optional[str] = None
+    AZURE_OPENAI_API_VERSION: str = "2024-10-21"
+    
+    # OpenAI API Settings
+    AZURE_OPENAI_MAX_TOKENS: int = 4000
+    AZURE_OPENAI_TEMPERATURE: float = 0.7
+    AZURE_OPENAI_TIMEOUT: int = 60
+    AZURE_OPENAI_MAX_RETRIES: int = 3
+    
+    # OpenAI Rate Limiting
+    AZURE_OPENAI_REQUESTS_PER_MINUTE: int = 60
+    AZURE_OPENAI_TOKENS_PER_MINUTE: int = 150000
+    
+    # Image Generation Settings
+    DALLE_IMAGE_SIZE: str = "1024x1024"
+    DALLE_IMAGE_QUALITY: str = "hd"
+    DALLE_IMAGE_STYLE: str = "vivid"
+    
+    # Text-to-Speech Settings
+    TTS_RESPONSE_FORMAT: str = "mp3"
+    TTS_SPEED: float = 1.0
+    
+    # Speech-to-Text Settings
+    WHISPER_RESPONSE_FORMAT: str = "json"
+    WHISPER_LANGUAGE: str = "en"
+    
+    # AI Content Generation Settings
+    AI_SCRIPT_MAX_LENGTH: int = 2000
+    AI_SCENE_DESCRIPTION_MAX_LENGTH: int = 500
+    AI_ENABLE_CONTENT_FILTERING: bool = True
+    
+    # Legacy AI Configuration (keep for backward compatibility)
     HUGGINGFACE_TOKEN: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
     STABILITY_AI_API_KEY: Optional[str] = None

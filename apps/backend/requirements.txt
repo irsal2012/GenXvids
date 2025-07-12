@@ -54,6 +54,9 @@ transformers==4.36.0
 diffusers==0.24.0
 accelerate==0.25.0
 
+# OpenAI API client
+openai>=1.68.2,<2.0.0
+
 # Image processing
 numpy==1.24.4
 scipy==1.11.4
