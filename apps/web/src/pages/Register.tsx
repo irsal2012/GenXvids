@@ -9,11 +9,17 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      await axios.post('/api/v1/users', { username, email, password });
+      const response = await axios.post('/api/v1/auth/register', { 
+        username, 
+        email, 
+        password 
+      });
       alert('Registration successful!');
-    } catch (error) {
-      alert('Registration failed. Please try again.');
-      console.error(error);
+      console.log('Registration response:', response.data);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 'Registration failed. Please try again.';
+      alert(errorMessage);
+      console.error('Registration error:', error);
     }
   };
 
