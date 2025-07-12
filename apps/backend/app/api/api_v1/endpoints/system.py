@@ -349,3 +349,45 @@ async def get_system_status():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get system status: {str(e)}"
         )
+
+
+@router.get("/info", response_model=dict)
+async def get_system_info():
+    """Get basic system information"""
+    try:
+        import platform
+        import sys
+        from datetime import datetime
+        
+        system_info = {
+            "application": "GenXvids Backend API",
+            "version": "1.0.0",
+            "environment": "development",
+            "python_version": sys.version,
+            "platform": platform.platform(),
+            "architecture": platform.architecture()[0],
+            "processor": platform.processor(),
+            "timestamp": datetime.utcnow().isoformat(),
+            "api_version": "v1",
+            "features": [
+                "video_processing",
+                "template_management", 
+                "asset_management",
+                "user_authentication",
+                "real_time_websockets",
+                "caching_system",
+                "performance_monitoring"
+            ]
+        }
+        
+        return {
+            "success": True,
+            "message": "System information retrieved successfully",
+            "data": system_info
+        }
+    except Exception as e:
+        logger.error(f"Failed to get system info: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get system info: {str(e)}"
+        )

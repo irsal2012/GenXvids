@@ -21,7 +21,7 @@ class Video(Base):
     resolution = Column(String(50), nullable=True)  # e.g., "1920x1080"
     format = Column(String(10), nullable=True)  # e.g., "mp4"
     status = Column(String(20), default="processing")  # processing, completed, failed
-    metadata = Column(JSON, nullable=True)  # Additional video metadata
+    video_metadata = Column(JSON, nullable=True)  # Additional video metadata
     
     # Foreign key to user
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)

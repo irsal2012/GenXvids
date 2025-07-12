@@ -4,7 +4,7 @@ Logging configuration
 
 from loguru import logger
 import sys
-from app.core.config import settings
+from apps.backend.app.core.config import settings
 
 
 def setup_logging():

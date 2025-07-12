@@ -98,8 +98,6 @@ class AssetService:
                 height=asset_data.height,
                 duration=asset_data.duration,
                 category=asset_data.category.value if asset_data.category else None,
-                tags=asset_data.tags,
-                metadata=asset_data.metadata,
                 is_public=True,
                 is_premium=False,
                 usage_count=0
@@ -146,9 +144,7 @@ class AssetService:
             if search_params.category:
                 query = query.where(Asset.category == search_params.category.value)
             
-            if search_params.tags:
-                for tag in search_params.tags:
-                    query = query.where(Asset.tags.contains([tag]))
+            # Tags functionality removed - not implemented in current model
             
             if search_params.is_premium is not None:
                 query = query.where(Asset.is_premium == search_params.is_premium)

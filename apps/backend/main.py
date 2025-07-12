@@ -14,38 +14,15 @@ import time
 import os
 from pathlib import Path
 
-from app.core.config import settings
-from app.core.logging import setup_logging
-from app.db.database import create_tables
-from app.api.api_v1.api import api_router
-from app.core.exceptions import setup_exception_handlers
+from apps.backend.app.core.config import settings
+from apps.backend.app.core.logging import setup_logging
+from apps.backend.app.db.database import create_tables
+from apps.backend.app.api.api_v1.api import api_router
+from apps.backend.app.core.exceptions import setup_exception_handlers
 
 # Setup logging
 logger = setup_logging()
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan events"""
-    # Startup
-    logger.info("🚀 Starting GenXvids Backend API")
-    
-    # Create upload directories
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    os.makedirs(settings.TEMP_DIR, exist_ok=True)
-    os.makedirs("logs", exist_ok=True)
-    
-    # Create database tables
-    await create_tables()
-    logger.info("✅ Database tables created/verified")
-    
-    logger.info(f"🌍 Server running on {settings.HOST}:{settings.PORT}")
-    logger.info(f"📚 API Documentation: http://{settings.HOST}:{settings.PORT}/docs")
-    logger.info(f"🔧 Environment: {settings.ENVIRONMENT}")
-    
-    yield
-    
-    # Shutdown
-    logger.info("🛑 Shutting down GenXvids Backend API")
 
 # Create FastAPI application
 app = FastAPI(
@@ -54,8 +31,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json",
-    lifespan=lifespan
+    openapi_url="/openapi.json"
 )
 
 # Add middleware

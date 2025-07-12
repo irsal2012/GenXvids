@@ -18,13 +18,14 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # Database Configuration
-    DATABASE_URL: str = "postgresql+asyncpg://genxvids_user:password@localhost:5432/genxvids"
-    DB_HOST: str = "localhost"
-    DB_PORT: int = 5432
-    DB_NAME: str = "genxvids"
-    DB_USER: str = "genxvids_user"
-    DB_PASSWORD: str = "password"
+    DATABASE_URL: str = "mysql+pymysql://irsal2025:RayDiva20!@35.221.1.172:3306/GenXvidsDB"
     
+    # Remote MySQL Database Configuration
+    REMOTE_DB_HOST: str = "35.221.1.172"
+    REMOTE_DB_PORT: int = 3306
+    REMOTE_DB_NAME: str = "GenXvidsDB"
+    REMOTE_DB_USER: str = "irsal2025"
+    REMOTE_DB_PASSWORD: str = "RayDiva20!"
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379/0"
     REDIS_HOST: str = "localhost"

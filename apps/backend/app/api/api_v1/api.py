@@ -3,7 +3,7 @@ Main API router for v1
 """
 
 from fastapi import APIRouter
-from app.api.api_v1.endpoints import auth, users, videos, templates, projects, assets, system, websocket
+from apps.backend.app.api.api_v1.endpoints import auth, users, videos, templates, projects, assets, system, websocket
 
 api_router = APIRouter()
 
