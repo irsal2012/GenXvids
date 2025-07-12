@@ -324,18 +324,29 @@ const VideoEditor: React.FC = () => {
           setExportProgress(0);
           setExportStatus('');
           
-          // Show success message with more details
+          // Show success message with more details and links
+          const format = videoMetadata?.format || 'HTML Preview';
+          const isHtml = format === 'html';
+          
           const message = `🎉 Video generated successfully!\n\n` +
                          `📹 Video ID: ${videoId}\n` +
                          `📊 Status: ${videoStatus}\n` +
                          `⏱️ Duration: ${videoMetadata?.duration || duration} seconds\n` +
-                         `🎞️ Format: ${videoMetadata?.format || 'HTML Preview'}\n` +
+                         `🎞️ Format: ${format}\n` +
                          `📐 Resolution: ${videoMetadata?.resolution || '1280x720'}\n\n` +
-                         `${videoMetadata?.format === 'html' ? 
+                         `📁 Your video is stored in: apps/backend/uploads/videos/\n\n` +
+                         `🔗 Access your video:\n` +
+                         `• View: /api/v1/videos/${videoId}/${isHtml ? 'view' : 'download'}\n` +
+                         `• Download: /api/v1/videos/${videoId}/download\n\n` +
+                         `${isHtml ? 
                            '💡 Your video has been generated as an interactive HTML preview. Install FFmpeg for MP4 generation.' : 
                            'Your video is ready for download!'}`;
           
-          alert(message);
+          // Also provide clickable links
+          if (confirm(message + '\n\nWould you like to view your video now?')) {
+            const viewUrl = `/api/v1/videos/${videoId}/${isHtml ? 'view' : 'download'}`;
+            window.open(viewUrl, '_blank');
+          }
         }, 1000);
       }
     } catch (error: any) {

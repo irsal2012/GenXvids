@@ -3,14 +3,19 @@ Video endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.db.database import get_db
 from app.schemas.video import VideoCreate, VideoUpdate, Video
 from app.schemas.user import User
 from app.services.video_service import VideoService
 from app.api.api_v1.endpoints.auth import get_current_user
+from app.models.video import Video as VideoModel
 from typing import List
 import logging
+import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -276,4 +281,117 @@ async def test_generate_video(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Test video generation failed: {str(e)}"
+        )
+
+
+@router.get("/{video_id}/download")
+async def download_video(
+    video_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Download or view the generated video file"""
+    try:
+        # Get video record
+        video = await VideoService.get_video_by_id(db, video_id, current_user.id)
+        
+        if not video:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Video not found"
+            )
+        
+        if not video.file_path:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Video file not found"
+            )
+        
+        # Check if file exists
+        file_path = Path(video.file_path)
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Video file does not exist on disk"
+            )
+        
+        # Determine media type based on file extension
+        if file_path.suffix.lower() == '.html':
+            media_type = "text/html"
+        elif file_path.suffix.lower() == '.mp4':
+            media_type = "video/mp4"
+        else:
+            media_type = "application/octet-stream"
+        
+        # Return file
+        return FileResponse(
+            path=str(file_path),
+            media_type=media_type,
+            filename=f"{video.title}_{video.id}{file_path.suffix}"
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error serving video file: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to serve video file: {str(e)}"
+        )
+
+
+@router.get("/{video_id}/view")
+async def view_video(
+    video_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """View video without authentication (for HTML previews)"""
+    try:
+        # Get video record (no auth required for viewing)
+        result = await db.execute(
+            select(VideoModel).where(VideoModel.id == video_id)
+        )
+        video = result.scalar_one_or_none()
+        
+        if not video:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Video not found"
+            )
+        
+        if not video.file_path:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Video file not found"
+            )
+        
+        # Check if file exists
+        file_path = Path(video.file_path)
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Video file does not exist on disk"
+            )
+        
+        # Only serve HTML files through this endpoint
+        if file_path.suffix.lower() != '.html':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This endpoint only serves HTML preview files"
+            )
+        
+        # Return HTML file
+        return FileResponse(
+            path=str(file_path),
+            media_type="text/html",
+            filename=f"{video.title}_{video.id}.html"
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error serving video preview: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to serve video preview: {str(e)}"
         )
