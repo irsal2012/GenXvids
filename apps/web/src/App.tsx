@@ -1,4 +1,3 @@
-import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Navbar from './components/Navbar'
@@ -25,7 +24,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/editor" element={<VideoEditor />} />
+          <Route path="/video-editor" element={<VideoEditor />} />
           <Route path="/templates" element={<Templates />} />
           <Route path="/projects" element={<Projects />} />
         </Routes>
