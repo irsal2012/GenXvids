@@ -27,6 +27,10 @@ class VideoProcessorBridge:
     ) -> Dict[str, Any]:
         """Process video using the video engine"""
         try:
+            logger.info(f"Starting video processing with {len(scenes)} scenes")
+            logger.info(f"Output path: {output_path}")
+            logger.info(f"Config: {config}")
+            
             # Simulate processing time
             await asyncio.sleep(2)
             

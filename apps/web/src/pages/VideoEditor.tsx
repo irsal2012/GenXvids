@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
+import { RootState } from '../store';
 
 interface VideoElement {
   id: string;
@@ -41,6 +43,7 @@ interface Template {
 const VideoEditor: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { token } = useSelector((state: RootState) => state.auth);
   
   const [project, setProject] = useState<Project | null>(null);
   const [template, setTemplate] = useState<Template | null>(null);
@@ -51,9 +54,22 @@ const VideoEditor: React.FC = () => {
   const [duration, setDuration] = useState(30);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showElementPanel, setShowElementPanel] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportStatus, setExportStatus] = useState('');
 
   const projectId = searchParams.get('project');
   const templateId = searchParams.get('template');
+
+  // Helper function to get axios config with auth headers
+  const getAxiosConfig = () => {
+    return token ? {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    } : {};
+  };
 
   useEffect(() => {
     loadEditor();
@@ -225,22 +241,64 @@ const VideoEditor: React.FC = () => {
 
   const exportVideo = async () => {
     try {
-      const exportData = {
-        elements: elements,
-        duration: duration,
-        resolution: '1920x1080',
-        fps: 30
+      setIsExporting(true);
+      setExportProgress(0);
+      setExportStatus('Preparing video generation...');
+
+      // Format data according to backend schema
+      const videoData = {
+        title: project?.name || 'Exported Video',
+        description: project?.description || 'Video created with GenXvids editor',
+        generation_type: 'template_based',
+        config: {
+          elements: elements,
+          duration: duration,
+          resolution: '1920x1080',
+          fps: 30,
+          format: 'mp4'
+        },
+        template_id: template?.id || null
       };
 
-      alert('Video export started! This may take a few minutes...');
+      // Simulate progress updates during export
+      const progressInterval = setInterval(() => {
+        setExportProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
+        });
+      }, 500);
+
+      // Update status messages
+      setTimeout(() => setExportStatus('Processing video elements...'), 1000);
+      setTimeout(() => setExportStatus('Rendering frames...'), 3000);
+      setTimeout(() => setExportStatus('Encoding video...'), 5000);
+      setTimeout(() => setExportStatus('Finalizing video...'), 7000);
       
-      const response = await axios.post('/api/v1/videos/export', exportData);
+      const response = await axios.post('/api/v1/videos/generate', videoData, getAxiosConfig());
+      
+      clearInterval(progressInterval);
+      setExportProgress(100);
+      setExportStatus('Video generated successfully!');
+      
       if (response.data.success) {
-        alert('Video exported successfully!');
+        const videoId = response.data.data.id;
+        
+        setTimeout(() => {
+          setIsExporting(false);
+          setExportProgress(0);
+          setExportStatus('');
+          alert(`Video generation started successfully! Video ID: ${videoId}`);
+        }, 1000);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting video:', error);
-      alert('Failed to export video. Please try again.');
+      setIsExporting(false);
+      setExportProgress(0);
+      setExportStatus('');
+      
+      // Better error handling
+      const errorMessage = error.response?.data?.detail || 'Failed to generate video. Please try again.';
+      alert(errorMessage);
     }
   };
 
@@ -267,6 +325,40 @@ const VideoEditor: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
+      {/* Export Progress Modal */}
+      {isExporting && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-8 max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="mb-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+              </div>
+              
+              <h3 className="text-xl font-semibold mb-2">Generating Video</h3>
+              <p className="text-gray-300 mb-6">{exportStatus}</p>
+              
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-700 rounded-full h-3 mb-4">
+                <div 
+                  className="bg-green-500 h-3 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${exportProgress}%` }}
+                ></div>
+              </div>
+              
+              {/* Progress Percentage */}
+              <div className="text-sm text-gray-400">
+                {Math.round(exportProgress)}% Complete
+              </div>
+              
+              {/* Estimated Time (optional) */}
+              <div className="mt-4 text-xs text-gray-500">
+                This may take a few minutes depending on video length and complexity
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-gray-800 border-b border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
@@ -291,9 +383,14 @@ const VideoEditor: React.FC = () => {
             </button>
             <button
               onClick={exportVideo}
-              className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-sm"
+              disabled={isExporting}
+              className={`px-4 py-2 rounded text-sm ${
+                isExporting 
+                  ? 'bg-gray-600 cursor-not-allowed' 
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
             >
-              Export Video
+              {isExporting ? 'Generating...' : 'Generate Video'}
             </button>
           </div>
         </div>

@@ -10,6 +10,9 @@ from app.schemas.user import User
 from app.services.video_service import VideoService
 from app.api.api_v1.endpoints.auth import get_current_user
 from typing import List
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -38,7 +41,7 @@ async def get_videos(
                 "file_size": video.file_size,
                 "resolution": video.resolution,
                 "format": video.format,
-                "metadata": video.metadata,
+                "metadata": video.video_metadata,
                 "created_at": video.created_at.isoformat(),
                 "updated_at": video.updated_at.isoformat()
             })
@@ -63,11 +66,13 @@ async def generate_video(
 ):
     """Generate a new video"""
     try:
+        logger.info(f"Starting video generation for user {current_user.id}")
+        logger.info(f"Video data: {video_data.dict()}")
+        
         # Create video record
         video = await VideoService.create_video(db, video_data, current_user.id)
         
-        # TODO: Queue background task for video processing
-        # For now, we'll just return the created video
+        logger.info(f"Video record created successfully with ID: {video.id}")
         
         return {
             "success": True,
@@ -77,13 +82,15 @@ async def generate_video(
                 "title": video.title,
                 "description": video.description,
                 "status": video.status,
-                "metadata": video.metadata,
+                "metadata": video.video_metadata,
                 "created_at": video.created_at.isoformat()
             }
         }
     except HTTPException as e:
+        logger.error(f"HTTP error during video generation: {e.detail}")
         raise e
     except Exception as e:
+        logger.error(f"Unexpected error during video generation: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Video generation failed: {str(e)}"
@@ -120,7 +127,7 @@ async def get_video(
                 "file_size": video.file_size,
                 "resolution": video.resolution,
                 "format": video.format,
-                "metadata": video.metadata,
+                "metadata": video.video_metadata,
                 "created_at": video.created_at.isoformat(),
                 "updated_at": video.updated_at.isoformat()
             }

@@ -22,6 +22,12 @@ class VideoService:
     async def create_video(db: AsyncSession, video_data: VideoCreate, user_id: int) -> Video:
         """Create a new video"""
         try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            logger.info(f"Creating video for user {user_id}")
+            logger.info(f"Video data: {video_data.dict()}")
+            
             # Generate unique filename
             video_id = str(uuid.uuid4())
             
@@ -30,7 +36,7 @@ class VideoService:
                 title=video_data.title,
                 description=video_data.description,
                 status="queued",
-                metadata={
+                video_metadata={
                     "generation_type": video_data.generation_type,
                     "config": video_data.config,
                     "template_id": video_data.template_id
@@ -188,20 +194,20 @@ class VideoService:
                 video.format = result["metadata"]["format"]
                 
                 # Update metadata
-                if video.metadata:
-                    video.metadata.update(result["metadata"])
+                if video.video_metadata:
+                    video.video_metadata.update(result["metadata"])
                 else:
-                    video.metadata = result["metadata"]
+                    video.video_metadata = result["metadata"]
                 
                 await db.commit()
                 return True
             else:
                 # Update status to failed
                 video.status = "failed"
-                if video.metadata:
-                    video.metadata["error"] = result.get("error", "Unknown error")
+                if video.video_metadata:
+                    video.video_metadata["error"] = result.get("error", "Unknown error")
                 else:
-                    video.metadata = {"error": result.get("error", "Unknown error")}
+                    video.video_metadata = {"error": result.get("error", "Unknown error")}
                 await db.commit()
                 return False
                 
@@ -213,10 +219,10 @@ class VideoService:
                 video = video.scalar_one_or_none()
                 if video:
                     video.status = "failed"
-                    if video.metadata:
-                        video.metadata["error"] = str(e)
+                    if video.video_metadata:
+                        video.video_metadata["error"] = str(e)
                     else:
-                        video.metadata = {"error": str(e)}
+                        video.video_metadata = {"error": str(e)}
                     await db.commit()
             except:
                 pass
@@ -227,7 +233,52 @@ class VideoService:
         """Create scenes from video configuration for non-template generation"""
         scenes = []
         
-        generation_type = config.get("generation_type", "text_to_video")
+        # Check if we have elements from the video editor
+        if "elements" in config and config["elements"]:
+            # Convert video editor elements to scenes
+            duration = config.get("duration", 30)
+            elements = config["elements"]
+            
+            scene_elements = []
+            for element in elements:
+                scene_element = {
+                    "id": element["id"],
+                    "type": element["type"],
+                    "position": element["position"],
+                    "size": element["size"],
+                    "timing": element.get("timing", {"start": 0, "duration": duration}),
+                    "properties": {}
+                }
+                
+                # Add type-specific properties
+                if element["type"] == "text":
+                    scene_element["properties"] = {
+                        "text": element.get("content", ""),
+                        "fontSize": element.get("style", {}).get("fontSize", 18),
+                        "fontFamily": element.get("style", {}).get("fontFamily", "Arial"),
+                        "color": element.get("style", {}).get("color", "#ffffff"),
+                        "backgroundColor": element.get("style", {}).get("backgroundColor", "transparent"),
+                        "opacity": element.get("style", {}).get("opacity", 1)
+                    }
+                elif element["type"] == "image":
+                    scene_element["properties"] = {
+                        "src": element.get("content", ""),
+                        "opacity": element.get("style", {}).get("opacity", 1)
+                    }
+                
+                scene_elements.append(scene_element)
+            
+            scenes.append({
+                "id": "editor_scene",
+                "type": "main",
+                "duration": duration,
+                "elements": scene_elements
+            })
+            
+            return scenes
+        
+        # Fallback to generation type based scenes
+        generation_type = config.get("generation_type", "template_based")
         
         if generation_type == "text_to_video":
             # Create a simple text scene
