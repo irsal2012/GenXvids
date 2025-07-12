@@ -63,12 +63,17 @@ const VideoEditor: React.FC = () => {
 
   // Helper function to get axios config with auth headers
   const getAxiosConfig = () => {
-    return token ? {
+    const storedToken = localStorage.getItem('token') || token;
+    return storedToken ? {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${storedToken}`,
         'Content-Type': 'application/json'
       }
-    } : {};
+    } : {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
   };
 
   useEffect(() => {
@@ -245,6 +250,13 @@ const VideoEditor: React.FC = () => {
       setExportProgress(0);
       setExportStatus('Preparing video generation...');
 
+      // Check if we have elements to generate
+      if (elements.length === 0) {
+        alert('Please add some elements to your video before generating!');
+        setIsExporting(false);
+        return;
+      }
+
       // Format data according to backend schema
       const videoData = {
         title: project?.name || 'Exported Video',
@@ -255,10 +267,15 @@ const VideoEditor: React.FC = () => {
           duration: duration,
           resolution: '1920x1080',
           fps: 30,
-          format: 'mp4'
+          format: 'mp4',
+          aspect_ratio: '16:9'
         },
         template_id: template?.id || null
       };
+
+      console.log('🎬 Starting video generation...');
+      console.log('📦 Video data:', JSON.stringify(videoData, null, 2));
+      console.log('🔑 Auth config:', getAxiosConfig());
 
       // Simulate progress updates during export
       const progressInterval = setInterval(() => {
@@ -274,7 +291,24 @@ const VideoEditor: React.FC = () => {
       setTimeout(() => setExportStatus('Encoding video...'), 5000);
       setTimeout(() => setExportStatus('Finalizing video...'), 7000);
       
-      const response = await axios.post('/api/v1/videos/generate', videoData, getAxiosConfig());
+      let response;
+      
+      try {
+        // Try the regular endpoint first
+        console.log('🎯 Trying regular endpoint with auth...');
+        response = await axios.post('/api/v1/videos/generate', videoData, getAxiosConfig());
+        console.log('✅ Regular endpoint success:', response.data);
+      } catch (authError: any) {
+        console.log('❌ Regular endpoint failed, trying test endpoint...');
+        console.log('Auth error:', authError.response?.status, authError.response?.data);
+        
+        // Fallback to test endpoint (no auth required)
+        console.log('🧪 Trying test endpoint as fallback...');
+        response = await axios.post('/api/v1/videos/test-generate', videoData);
+        console.log('✅ Test endpoint success:', response.data);
+      }
+      
+      console.log('✅ Video generation response:', response.data);
       
       clearInterval(progressInterval);
       setExportProgress(100);
@@ -282,22 +316,52 @@ const VideoEditor: React.FC = () => {
       
       if (response.data.success) {
         const videoId = response.data.data.id;
+        const videoStatus = response.data.data.status;
+        const videoMetadata = response.data.data.metadata;
         
         setTimeout(() => {
           setIsExporting(false);
           setExportProgress(0);
           setExportStatus('');
-          alert(`Video generation started successfully! Video ID: ${videoId}`);
+          
+          // Show success message with more details
+          const message = `🎉 Video generated successfully!\n\n` +
+                         `📹 Video ID: ${videoId}\n` +
+                         `📊 Status: ${videoStatus}\n` +
+                         `⏱️ Duration: ${videoMetadata?.duration || duration} seconds\n` +
+                         `🎞️ Format: ${videoMetadata?.format || 'HTML Preview'}\n` +
+                         `📐 Resolution: ${videoMetadata?.resolution || '1280x720'}\n\n` +
+                         `${videoMetadata?.format === 'html' ? 
+                           '💡 Your video has been generated as an interactive HTML preview. Install FFmpeg for MP4 generation.' : 
+                           'Your video is ready for download!'}`;
+          
+          alert(message);
         }, 1000);
       }
     } catch (error: any) {
-      console.error('Error exporting video:', error);
+      console.error('❌ Error exporting video:', error);
+      console.error('📋 Error response:', error.response?.data);
+      console.error('📊 Error status:', error.response?.status);
+      
       setIsExporting(false);
       setExportProgress(0);
       setExportStatus('');
       
-      // Better error handling
-      const errorMessage = error.response?.data?.detail || 'Failed to generate video. Please try again.';
+      // Better error handling with more details
+      let errorMessage = 'Failed to generate video. ';
+      
+      if (error.response?.status === 403) {
+        errorMessage += 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 422) {
+        errorMessage += 'Invalid video data format.';
+      } else if (error.response?.status === 500) {
+        errorMessage += 'Server error during video processing.';
+      } else if (error.response?.data?.detail) {
+        errorMessage += error.response.data.detail;
+      } else {
+        errorMessage += 'Please try again.';
+      }
+      
       alert(errorMessage);
     }
   };

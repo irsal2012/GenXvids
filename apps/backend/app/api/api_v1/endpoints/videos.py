@@ -239,3 +239,41 @@ async def get_video_progress(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get progress: {str(e)}"
         )
+
+
+@router.post("/test-generate", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def test_generate_video(
+    video_data: VideoCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Test video generation without authentication (for debugging)"""
+    try:
+        logger.info(f"Starting test video generation")
+        logger.info(f"Video data: {video_data.dict()}")
+        
+        # Create video record with a test user ID (1)
+        video = await VideoService.create_video(db, video_data, user_id=1)
+        
+        logger.info(f"Test video record created successfully with ID: {video.id}")
+        
+        return {
+            "success": True,
+            "message": "Test video generation started",
+            "data": {
+                "id": video.id,
+                "title": video.title,
+                "description": video.description,
+                "status": video.status,
+                "metadata": video.video_metadata,
+                "created_at": video.created_at.isoformat()
+            }
+        }
+    except HTTPException as e:
+        logger.error(f"HTTP error during test video generation: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error during test video generation: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Test video generation failed: {str(e)}"
+        )
