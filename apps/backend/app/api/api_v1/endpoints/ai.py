@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from app.services.openai_service import openai_service
-from app.utils.auth import get_current_user
+from app.api.api_v1.endpoints.auth import get_current_user
 from app.models.user import User
 import logging
 

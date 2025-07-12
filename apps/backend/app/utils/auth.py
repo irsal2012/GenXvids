@@ -69,38 +69,7 @@ def create_tokens(email: str) -> dict:
 # Security scheme
 security = HTTPBearer()
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Get current authenticated user"""
-    try:
-        # Extract token from credentials
-        token = credentials.credentials
-        
-        # Verify the token
-        email = verify_token(token)
-        if not email:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # For now, return a mock user object
-        # In production, you would query the database to get the actual user
-        from app.models.user import User
-        mock_user = User(
-            id=1,
-            email=email,
-            username=email.split('@')[0],
-            is_active=True
-        )
-        return mock_user
-        
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+# get_current_user is now defined in endpoints/auth.py to avoid conflicts
 
 async def get_current_user_websocket(token: str) -> Optional[int]:
     """Authenticate user for WebSocket connections"""
